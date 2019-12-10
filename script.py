@@ -37,32 +37,35 @@ def full_algorithim(alpha, init_data):
 result = minimize(full_algorithim, alpha, array_of_actual_values, bounds=[(0, 1)])
 
 # there's a tiny amount of variation in the optimal value based on the initial value for alpha
-[alpha_opt] = result.x
-print(alpha_opt)
+[alpha_optimized] = result.x
+print(alpha_optimized)
 
 
-def algebraic_tranformation(df, columnNameActual, columnNamePredicted, columnNameErrors, alpha):
-    df_new = df
+def algebraic_transformation(df_original, column_name_actual, column_name_predicted, column_name_errors, alpha_opt):
+    df_new = df_original
 
     for i in range(0, len(df_new)):
         if i < 2:
             # sets the first two values in Forecast to be the first value in Seasonally
-            df_new.loc[i, columnNamePredicted] = df_new.loc[0, columnNameActual]
+            df_new.loc[i, column_name_predicted] = df_new.loc[0, column_name_actual]
         else:
-            df_new.loc[i, columnNamePredicted] = 2 * df_new.loc[i - 1, columnNameActual] - df_new.loc[
-                i - 2, columnNameActual] - 2 * (1 - alpha) * df_new.loc[i - 1, columnNameErrors] + (
-                                                             (1 - alpha) ** 2 * df_new.loc[i - 2, columnNameErrors])
+            df_new.loc[i, column_name_predicted] = \
+                2 * df_new.loc[i - 1, column_name_actual] - df_new.loc[i - 2, column_name_actual] - 2 * (1 - alpha_opt) * df_new.loc[i - 1, column_name_errors] + ((1 - alpha_opt) ** 2 * df_new.loc[i - 2, column_name_errors])
+
         # calculates the error, y_actual - y_predicted
-        df_new.loc[i, columnNameErrors] = df_new.loc[i, columnNameActual] - df_new.loc[i, columnNamePredicted]
+        df_new.loc[i, column_name_errors] = df_new.loc[i, column_name_actual] - df_new.loc[i, column_name_predicted]
 
     return df_new
 
 
-df_new = algebraic_tranformation(df, 'Seasonally', 'Forecast', 'Error', alpha_opt)
+df_changed = algebraic_transformation(df, 'Seasonally', 'Forecast', 'Error', alpha_optimized)
+
+RMSE = np.sqrt(np.mean(np.square(df_changed.Error)))
+print(RMSE)
 
 # removes time from date column
-df_new.Date = pd.to_datetime(df.Date).dt.date
+df_changed.Date = pd.to_datetime(df.Date).dt.date
 
 with pd.ExcelWriter('Seasonality-with-Forecast-Errors.xlsx', engine='openpyxl', mode='w') as writer:
-    df_new.to_excel(writer, index=False)
+    df_changed.to_excel(writer, index=False)
 
